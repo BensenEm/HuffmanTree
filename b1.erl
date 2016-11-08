@@ -2,7 +2,6 @@
 -compile(export_all).
 -record(co,{char, count=1}).
 -record(table,{char, bitList=[]}).
-
 -type tree():: fork() | leaf().
 -record(fork, {left::tree(), right::tree(), chars::list(char()), weight::non_neg_integer()}).
 -type fork() :: #fork{}.
@@ -10,12 +9,10 @@
 -type leaf() :: #leaf{}.
 -type bit() :: 0 | 1.
 
-
-%---Main Functions---------------------------------------------------------------------------------------
-
+%---Main Functions-------------------------------------------------------------------------------------------
 check_it(StringA)->                               %Creates BitString from CharString
   List=string_to_char_list(StringA),              %Strips String into CharList
-  ListSorted= ue3:sort2(List),                    %Sorts CharList as preparation for character count
+  ListSorted= sort(List),                    %Sorts CharList as preparation for character count
   Dict=char_list_to_dict(ListSorted),             %Counts characters in CharList and creates "co"Record dictionary, by counting how many identical characters are nxt to each other.
   DictSorted=sort3(Dict),                         %Sorts dictionary according to charweight
   Leaves=createLeaves(DictSorted),                %Creates Leaves from dictionary (DictSorted)
@@ -28,8 +25,7 @@ uncheck_it(BitString, Tree)->
   BitList= string_to_char_list(BitString),        %Transform String of Bits(1/0) to List of Bits
   decodeBits(Tree, BitList).                      %Traverses Tree according to BitList until leaf is found.
                                                   %Returns CharValue of Leaf and adds all up to one String
-
-%---Help Functions---------------------------------------------------------------------------------------
+%---Help Functions--------------------------------------------------------------------------------------------
 
 string_to_char_list(StringA)->
   String=string:to_lower(StringA),
@@ -46,6 +42,16 @@ char_list_to_dict([H,H|T],Occ)->char_list_to_dict([H|T], Occ+1);
 char_list_to_dict([H,H2|T],Occ)->[#co{char=H, count=Occ}] ++ char_list_to_dict([H2|T],1).
 
 %inserts nr into sorted List, returns sorted List
+insertSoS(N,[])-> [N];
+insertSoS(N,[H|T]) when N>H-> [H|insertSoS(N,T)];
+insertSoS(N,[H|T]) when N=<H-> [N,H|T].
+%sort List with insertSo
+sort(List)->sort(List,[]).
+sort([H|T], SList) -> sort(T, insertSoS(H, SList));
+sort([], T) -> T.
+%-------------------------------------------------
+
+%inserts nr into sorted List, returns sorted List
 insertSo(N=#co{count=C},[])-> [N];
 insertSo(N=#co{count=C},[H=#co{count=C2}|T]) when C>=C2-> [H|insertSo(N,T)];
 insertSo(N=#co{count=C},[H=#co{count=C2}|T]) when C<C2-> [N,H|T];
@@ -55,7 +61,6 @@ insertSo(N=#fork{weight=C},[H=#fork{weight=C2}|T]) when C>=C2-> [H|insertSo(N,T)
 insertSo(N=#fork{weight=C},[H=#fork{weight=C2}|T]) when C<C2-> [N,H|T];
 insertSo(N=#fork{weight=C},[H=#leaf{weight=C2}|T]) when C>=C2-> [H|insertSo(N,T)];
 insertSo(N=#fork{weight=C},[H=#leaf{weight=C2}|T]) when C<C2-> [N,H|T].
-
 %sort List with insertSo
 sort3(List)->sort2(List,[]).
 sort2([H|T], SList) -> sort2(T, insertSo(H, SList));
@@ -83,7 +88,7 @@ decodeBits(#fork{} = Orig, List)-> decodeBits(Orig, List, Orig).
 decodeBits(#fork{left=L, right=R}, ["0"|T], Orig)->decodeBits(L,T, Orig);
 decodeBits(#fork{left=L, right=R}, ["1"|T], Orig)->decodeBits(R,T, Orig);
 decodeBits(#leaf{char=C}, T, Orig)->C ++ decodeBits(Orig, T, Orig);
-decodeBits(#leaf{char=C}, T, Orig)->C ++ decodeBits(Orig, T,Orig);
+%decodeBits(#leaf{char=C}, T, Orig)->C ++ decodeBits(Orig, T,Orig);
 decodeBits(_,[],_)->"".
 
 %Takes a HuffmanTree and creates a List of #table Records with a character and a List of corresponding Bits
@@ -94,8 +99,7 @@ makeTable(#leaf{char=C}, KeyList)->
   [#table{char=C, bitList=KeyList}].
 
 %encodes a String according to HuffmanTree Table
-encodeString(Treetable, String)->
-encodeStringList(TreeTable, string_to_char_list(String), TreeTable).
+encodeString(TreeTable, String)-> encodeStringList(TreeTable, string_to_char_list(String), TreeTable).
 encodeStringList([HT|TableList], [HC|CharList], OriginalTableList) ->
   if HT#table.char==HC -> HT#table.bitList ++ encodeStringList(OriginalTableList,CharList,OriginalTableList);
     true -> encodeStringList(TableList, [HC|CharList], OriginalTableList)
