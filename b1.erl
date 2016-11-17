@@ -12,9 +12,9 @@
 %---Main Functions-------------------------------------------------------------------------------------------
 check_it(StringA)->                               %Creates BitString from CharString
   List=string_to_char_list(StringA),              %Strips String into CharList
-  ListSorted= sort(List, fun b1:compS/2),                         %Sorts CharList as preparation for character count
+  ListSorted= sort(List, fun b1:compS/2),         %Sorts CharList as preparation for character count
   Dict=char_list_to_dict(ListSorted),             %Counts characters in CharList and creates "co"Record dictionary, by counting how many identical characters are nxt to each other.
-  DictSorted=sort3(Dict),                         %Sorts dictionary according to charweight
+  DictSorted=sort(Dict, fun b1:compT/2),          %Sorts dictionary according to charweight
   Leaves=createLeaves(DictSorted),                %Creates Leaves from dictionary (DictSorted)
   Tree=createHuffTree(Leaves),                    %Takes two TreeNodes(fork or leaf), combines them to a new treenode and inserts it SORTED into the remaining List
   EncodingList=makeTable(Tree),                   %Traverses Tree and returns the "BitPath"-List in a Tuple together with the corresponding character
@@ -41,33 +41,20 @@ char_list_to_dict([H,H2|[]],Occ)->[#co{char=H,count=Occ}]++[#co{char=H2,count=1}
 char_list_to_dict([H,H|T],Occ)->char_list_to_dict([H|T], Occ+1);
 char_list_to_dict([H,H2|T],Occ)->[#co{char=H, count=Occ}] ++ char_list_to_dict([H2|T],1).
 
-
 %inserts nr into sorted List, returns sorted List
 compS(X,Y)-> case (X>Y) of true -> Y; _ -> X end.
+compT(N=#fork{weight=C}, H=#fork{weight=C2}) -> case (C>C2) of true -> H; _ -> N end;
+compT(N=#fork{weight=C}, H=#leaf{weight=C2}) -> case (C>C2) of true -> H; _ -> N end;
+compT(N=#co{count=C}, H=#co{count=C2})       -> case (C>C2) of true -> H; _ -> N end.
+
 %Insert with Function into
 insertSoS(N,[],MyFunc)-> [N];
-insertSoS(N,[H|T], MyFunc) -> case MyFunc(N,H)==H of true ->  [H|insertSoS(N,T,MyFunc)]; _ ->     [N,H|T] end.
+insertSoS(N,[H|T], MyFunc) -> case MyFunc(N,H)==H of true ->  [H|insertSoS(N,T,MyFunc)]; _ -> [N,H|T] end.
 %sort List with insertSo
 sort(List, MyFunc)->sort(List, [], MyFunc).
 sort([H|T], SList, MyFunc) -> sort(T, insertSoS(H, SList, MyFunc),MyFunc);
 sort([], T, MyFunc) -> T.
 %-------------------------------------------------
-
-%inserts nr into sorted List, returns sorted List
-insertSo(N=#co{count=C},[])-> [N];
-insertSo(N=#co{count=C},[H=#co{count=C2}|T]) when C>=C2-> [H|insertSo(N,T)];
-insertSo(N=#co{count=C},[H=#co{count=C2}|T]) when C<C2-> [N,H|T];
-%inserts fork into sorted List, returns sorted List
-insertSo(N=#fork{weight=C},[])-> [N];
-insertSo(N=#fork{weight=C},[H=#fork{weight=C2}|T]) when C>=C2-> [H|insertSo(N,T)];
-insertSo(N=#fork{weight=C},[H=#fork{weight=C2}|T]) when C<C2-> [N,H|T];
-insertSo(N=#fork{weight=C},[H=#leaf{weight=C2}|T]) when C>=C2-> [H|insertSo(N,T)];
-insertSo(N=#fork{weight=C},[H=#leaf{weight=C2}|T]) when C<C2-> [N,H|T].
-%sort List with insertSo
-sort3(List)->sort2(List,[]).
-sort2([H|T], SList) -> sort2(T, insertSo(H, SList));
-sort2([], T) -> T.
-
 createLeaves([#co{char=C, count=N}|T])->[#leaf{char=C, weight=N}|createLeaves(T)];
 createLeaves([])->[].
 
@@ -82,7 +69,7 @@ joinLeavesNForks(H=#fork{chars=C, weight=N, left=L, right=R}, H2=#leaf{char=C2, 
   N3=N+N2,C3=C++C2, #fork{chars=C3, weight=N3, left=H, right=H2}.
 
 %Creates a HuffmanTree from a list of leaves
-createHuffTree([H1,H2|T])-> createHuffTree(insertSo(joinLeavesNForks(H1,H2), T));
+createHuffTree([H1,H2|T])-> createHuffTree(insertSoS(joinLeavesNForks(H1,H2), T, fun b1:compT/2));
 createHuffTree([H|[]])->H.
 
 %Takes Bits and a HuffmanTree to decode
