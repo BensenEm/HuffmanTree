@@ -12,7 +12,7 @@
 %---Main Functions-------------------------------------------------------------------------------------------
 check_it(StringA)->                               %Creates BitString from CharString
   List=string_to_char_list(StringA),              %Strips String into CharList
-  ListSorted= sort(List),                    %Sorts CharList as preparation for character count
+  ListSorted= sort(List, fun b1:compS/2),                         %Sorts CharList as preparation for character count
   Dict=char_list_to_dict(ListSorted),             %Counts characters in CharList and creates "co"Record dictionary, by counting how many identical characters are nxt to each other.
   DictSorted=sort3(Dict),                         %Sorts dictionary according to charweight
   Leaves=createLeaves(DictSorted),                %Creates Leaves from dictionary (DictSorted)
@@ -41,14 +41,16 @@ char_list_to_dict([H,H2|[]],Occ)->[#co{char=H,count=Occ}]++[#co{char=H2,count=1}
 char_list_to_dict([H,H|T],Occ)->char_list_to_dict([H|T], Occ+1);
 char_list_to_dict([H,H2|T],Occ)->[#co{char=H, count=Occ}] ++ char_list_to_dict([H2|T],1).
 
+
 %inserts nr into sorted List, returns sorted List
-insertSoS(N,[])-> [N];
-insertSoS(N,[H|T]) when N>H-> [H|insertSoS(N,T)];
-insertSoS(N,[H|T]) when N=<H-> [N,H|T].
+compS(X,Y)-> case (X>Y) of true -> Y; _ -> X end.
+%Insert with Function into
+insertSoS(N,[],MyFunc)-> [N];
+insertSoS(N,[H|T], MyFunc) -> case MyFunc(N,H)==H of true ->  [H|insertSoS(N,T,MyFunc)]; _ ->     [N,H|T] end.
 %sort List with insertSo
-sort(List)->sort(List,[]).
-sort([H|T], SList) -> sort(T, insertSoS(H, SList));
-sort([], T) -> T.
+sort(List, MyFunc)->sort(List, [], MyFunc).
+sort([H|T], SList, MyFunc) -> sort(T, insertSoS(H, SList, MyFunc),MyFunc);
+sort([], T, MyFunc) -> T.
 %-------------------------------------------------
 
 %inserts nr into sorted List, returns sorted List
